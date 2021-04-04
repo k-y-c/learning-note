@@ -624,11 +624,11 @@ TcpConnection中的shutdown函数会调用`::shutdown(sockfd, SHUT_WR)`，关闭
 
 ### 4. TcpServer 连接到来时的流程
 
-![Tcpnewconn](/Users/chenkeyu/Desktop/c++/mynote/muduo-learning/fig/Tcpnewconn.jpg)
+![Tcpnewconn](./fig/Tcpnewconn.jpg)
 
 ---
 
 ### 5. TcpServer连接被动关闭时流程
 
-![Tcpcloseconn](/Users/chenkeyu/Desktop/c++/mynote/muduo-learning/fig/Tcpcloseconn.jpg)
+![Tcpcloseconn](./fig/Tcpcloseconn.jpg)
 
