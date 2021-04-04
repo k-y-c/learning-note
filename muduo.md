@@ -395,7 +395,7 @@ void ThreadData::runInThread()
 
 线程池的用法类似生产者消费者模型。
 
-![fig1](/Users/chenkeyu/Desktop/c++/mynote/fig/fig1.png)
+![fig1](https://github.com/k-y-c/muduo-learning/blob/main/fig/fig1.png)
 
 用法：
 
@@ -624,11 +624,11 @@ TcpConnection中的shutdown函数会调用`::shutdown(sockfd, SHUT_WR)`，关闭
 
 ### 4. TcpServer 连接到来时的流程
 
-![Tcpnewconn](/Users/chenkeyu/Desktop/c++/mynote/fig/Tcpnewconn.jpg)
+![Tcpnewconn](/Users/chenkeyu/Desktop/c++/mynote/muduo-learning/fig/Tcpnewconn.jpg)
 
 ---
 
 ### 5. TcpServer连接被动关闭时流程
 
-![Tcpcloseconn](/Users/chenkeyu/Desktop/c++/mynote/fig/Tcpcloseconn.jpg)
+![Tcpcloseconn](/Users/chenkeyu/Desktop/c++/mynote/muduo-learning/fig/Tcpcloseconn.jpg)
 
