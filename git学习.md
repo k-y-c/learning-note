@@ -165,5 +165,5 @@ git checkout -- file_name #删除也是一种修改
   git clone git@github.com:michaelliao/gitskills.git
   ```
 
-  
+### 拉取
 
