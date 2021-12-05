@@ -26,7 +26,7 @@ struct less_than_comparable1 : B
 };
 ```
 
-所以只需要在类外定义< and ==的运算符重载即可实现其他部分。
+所以只需要在类外定义< and ==的运算符重载即可实现其他部分。**（也可以类内重载）**
 
 ```c++
 inline bool operator<(Timestamp lhs, Timestamp rhs)
@@ -395,7 +395,7 @@ void ThreadData::runInThread()
 
 线程池的用法类似生产者消费者模型。
 
-![fig1](https://github.com/k-y-c/muduo-learning/blob/main/fig/fig1.png)
+![fig1](./fig/fig1.png)
 
 用法：
 
