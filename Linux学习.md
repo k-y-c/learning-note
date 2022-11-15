@@ -261,6 +261,15 @@ U盘插入时，自动挂载到/media中。
   - -d /home/xxx 用户家目录
   - -m 用户家目录不存在时，自动创建该目录
 
+### 赋予sudo权限
+
+- 赋予sudoer文件写权限
+- sudo chmod u+w /etc/sudoers
+- 编辑sudoers文件，给对应的用户添加sudo权限
+- sudo vi /etc/sudoers
+- root	ALL=(ALL:ALL) ALL
+- A	ALL=(ALL:ALL) ALL
+
 ### 设置用户组
 
 - sudo groupadd xxx

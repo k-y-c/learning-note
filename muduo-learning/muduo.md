@@ -1,5 +1,57 @@
 # muduo学习
 
+## 面向对象与基于对象的编程风格对比
+
+以TcpServer为例，当client连接到来时，TcpSever需要回调`OnConnection、OnMessage、OnClose`三种不同的方法，假设这三个方法需要用户自行编写，则两种编程风格对比如下：
+
+### 面向对象
+
+```cpp
+/*
+	用MySever继承TcpSever抽象类，实现三个接口
+*/
+class TcpServer{
+public:
+	...
+private:
+	virtual void OnConnection(...);
+	virtual void OnMessage(...);
+	virtual void OnClose(...);
+}
+
+class MyServer:TcpServer{
+public:
+    ...
+private:
+    void OnConnection(...);
+    void OnMessage(...);
+    void OnClose(...);
+}
+```
+
+### 基于对象
+
+```cpp
+/*
+	MySever包含TcpSever类，在构造函数中用std::bind注册三个成员函数(c风格则为全局函数)
+*/
+class MyServer{
+public:
+    MyServer(){
+        server.SetConnectionCallback(std::bind(OnConnection,this));
+        server.SetMessageCallback(std::bind(OnMessage,this));
+        server.SetCloseCallback(std::bind(OnClose,this));
+    }
+    void OnConnection(...);
+    void OnMessage(...);
+    void OnClose(...);
+    TcpServer server;
+    ...
+}
+```
+
+
+
 ## base库
 
 ### 1. Timestamp
@@ -109,6 +161,67 @@ inline Timestamp addTime(Timestamp timestamp, double seconds)
 
 get()函数获取当前值，getAndAdd(T x)为先获取后自增，由这两个原子操作可以得到++、--等加减原子操作。
 
+#### 2.1 无锁队列（CAS）
+
+参考https://coolshell.cn/articles/8239.html
+
+链表实现，进队方式
+
+```cpp
+EnQueue(x){
+    // 准备新节点
+	q = new node();
+	q->value = x;
+	q->next = NULL;
+	do{
+		p = tail; // 取尾结点
+	}while(CAS(p->next,NULL,q) != TRUE); 
+    /* CAS(p->next,NULL,q) 将下面的if-else看作原子操作，不会被其他线程打断
+    	if(p->next == NULL){
+    		p->next = q;
+    		return true;
+    	}
+    	else return false;
+    */
+    CAS(tail,p,q); // 更新尾结点，不需要判断，只要跳出while循环，该函数必执行成功。
+}
+```
+
+### Exception
+
+主要知识点：系统调用`backtrace`和`backtrace_symbols`，函数名字mangle和demangle
+
+`Exception`类用于抛出异常，其继承自`std::exception`，用法如下：
+
+```cpp
+void foo()
+{
+	throw muduo::Exception("oops");
+}
+int main(){
+    try{
+        foo();
+    }
+    catch(const muduo::Exception& ex){
+        printf("reason: %s\n", ex.what()); // reason:oops
+        printf("stack trace: %s\n", ex.stackTrace()); // 输出栈追踪
+        /*
+        reason: oops
+    stack trace: /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(_ZN5muduo9Exception14fillStackTraceEv+0x43) [0x55f64c3638b5]
+    /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(_ZN5muduo9ExceptionC2EPKc+0xaf) [0x55f64c36364d]
+    /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(_ZN3Bar4testEv+0x32) [0x55f64c363568]
+    /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(_Z3foov+0x27) [0x55f64c363470]
+    /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(main+0x12) [0x55f64c363499]
+    /lib/x86_64-linux-gnu/libc.so.6(+0x29d90) [0x7fdde7ea8d90]
+    /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80) [0x7fdde7ea8e40]
+    /home/cky/muduo_server_learn/src/12/jmuduo/build/bin/exception_test(_start+0x25) [0x55f64c363385]
+        */
+    }
+}
+```
+
+
+
 ### 3.  互斥锁和条件变量
 
 Mutex.h和Condition.h分别实现了互斥锁和条件变量
@@ -207,7 +320,7 @@ class MutexLockGuard : noncopyable
 
     锁住mutex
 
-    ​		while（cond.wait()）{}
+    ​		while（用户条件）{cond.wait()}
 
     解锁mutex
 
@@ -320,11 +433,13 @@ CurrentThread命名空间还提供几个全局函数供外部接口访问。
 
 其中tid()调用cacheTid()实现对上面全局变量的更新，最底层调用`return static_cast<pid_t>(::syscall(SYS_gettid));`实现。
 
-***Ps.cacheTid()和isMainThread()两个函数的定义在Thread.cc中实现。***
+***Ps     cacheTid()和isMainThread()两个函数的定义在Thread.cc中实现。***
 
 ---
 
 #### 4.2 Thread.h
+
+![](fig\Thread类图.png)
 
 Class Thread对线程进行封装，其构造函数需要传递线程函数和线程名称。
 
@@ -389,7 +504,11 @@ void ThreadData::runInThread()
 	}
 ```
 
-***为什么作者对于线程的封装要利用ThreadData中间类的指针作为参数进行传递，里面是否包含何种设计模式？***
+~~***为什么作者对于线程的封装要利用ThreadData中间类的指针作为参数进行传递，里面是否包含何种设计模式？***~~
+
+`pthread_create()`的入口函数必须是`void *(*__start_routine)(void *)`，即不能为成员函数，因此不能为`runInThread`，而真正的子线程函数`func_`又被`typedef boost::function<void ()> ThreadFunc`封装，不能直接作为`__start_routine`。
+
+综上，需要用一个**静态**成员函数作为`__start_routine`，将`ThreadData*`作为参数传入，即可调用到真正的`func_`
 
 #### 4.3 ThreadPool（线程池）
 
@@ -628,11 +747,64 @@ class Exception : public std::exception
 
 
 
+## 常见的并发服务器方案
 
+![方案总结](fig\方案总结.png)
+
+![服务器方案1](fig\服务器方案1.png)
+
+![](fig\服务器方案2.png)
+
+1. 循环执行：accept -> read -> compute -> write -> close
+2. 每到来一个连接创建一个进程\线程
+3. 提前建立多个进程\线程，每个进程\线程循环执行：accept -> read -> compute -> write -> close。该方案可能导致**惊群现象**，即多个进程\线程同时accept。
+4. 利用select\poll\epoll轮训客户请求，针对不同请求分别执行accept或者read
+
+![7.reactor+threadpool](fig\reactor+threadpool.png)
+
+7. 主线程(reactor)负责accept以及读写，子线程（工作线程）负责处理业务逻辑部分
+
+![multiple-reactors](fig\multiple-reactors.png)
+
+8. mainReactor线程仅负责accept，将accept后的套接字轮询（round robin）分配到subReactor线程
+
+![multiple-reactors+threadpool](fig\multiple-reactors+threadpool.png)
+
+9. （推荐）mainReactor线程仅负责accept，将accept后的套接字轮询（round robin）分配到subReactor线程，subReactor仅负责读写，业务逻辑计算部分放在threadPool中处理。**多个subReactor共享一个线程池**
+
+![](fig\异步IO.png)
+
+10. aio_read是非阻塞的，前文同步IO的read也可以设置为非阻塞模式（O_NONBLOCK），两者是有区别的，并且与I/O复用(select\poll\epoll)也有区别，aio_read是直接将数据从内核缓冲区拷贝到内存，而I/O复用还需要调用read将数据从内核缓冲区拷贝到内存。
+
+## 线程池大小的选择
+
+![线程池大小的选择](fig\线程池大小的选择.png)
+
+线程池可分类为：
+
+- I/O线程
+- 计算线程
+- 第三方库线程（logging、database）
 
 -----
 
 ## net库
+
+### 类图
+
+![类图](fig\类图.png)
+
+### EventLoop时序图
+
+![eventloop时序图](fig\eventloop时序图.png)
+
+### enableReading时序图
+
+![enableReading时序图](fig\enableReading时序图.png)
+
+### 字节序转换
+
+网络字节序为大端字节序，主机字节序不确定
 
 ### 1. IP地址封装
 
@@ -917,7 +1089,16 @@ timerfd_settime(timerfd, 0, &newValue, &oldValue);
 
 ### 9. buffer设计
 
+![buffer类图](fig\buffer类图.png)
 
+buffer对外看起来像是一块连续的内存空间，其成员变量仅有三个：`vector<char> data`、`readIndex`、`writeIndex`
 
+![buffer数据结构](fig\buffer数据结构.png)
 
-
+- 一些机制
+  - prependable可用于需要往头部添加数据的情况，如sizeof data。
+  - 当writable空间不够时，vector会自动扩容
+    1. 如果writable+prependable空间足够，则将CONTENT拷贝到起点
+    2. 如果不够，则将vector resize
+  - 当一次性取完数据时，`readIndex`、`writeIndex`会回到起点
+  - vector初始size为1k，在readFD()中创建char[65535]，并利用readv读取大额数据，可以有效利用栈上空间
