@@ -202,7 +202,7 @@ U盘插入时，自动挂载到/media中。
   - tar jcvf 压缩包名字（xxx.tar.bz2） 要压缩的文件or目录
 - 解压缩：
   - tar jxvf 压缩包名字（xxx.tar.bz2）
-  - tar jxvf 压缩包名字（xxx.tar.bz2）-C 要放置的目录
+  - tar zxvf 压缩包名字（xxx.tar.gz）-C 要放置的目录
 
 ### rar（需用户手动安装）
 
@@ -223,6 +223,25 @@ U盘插入时，自动挂载到/media中。
   - unzip dir.zip -d 指定目录
 
 ## 进程相关
+
+```
+# 查看物理CPU个数
+cat /proc/cpuinfo| grep "physical id"| sort| uniq| wc -l
+
+# 查看每个物理CPU中core的个数(即核数)
+cat /proc/cpuinfo| grep "cpu cores"| uniq
+
+# 查看逻辑CPU的个数
+cat /proc/cpuinfo| grep "processor"| wc -l
+```
+
+### uname
+
+- 查看内核 uname -a
+
+### free
+
+- 查看内存 free -mh
 
 ### tty
 
